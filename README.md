@@ -4,12 +4,12 @@ Uma engine de jogo 3D simples desenvolvida em Java puro, utilizando renderizaç�
 
 O projeto contém dois exemplos de demonstração:
 
-1.  **Space Shooter** (`Window.java`): Um jogo de nave espacial.
-2.  **Racing Demo** (`WindowRace.java`): Um jogo de corrida infinita.
+1.  **Space Shooter** (`Space.java`): Um jogo de nave espacial.
+2.  **Racing Demo** (`Race.java`): Um jogo de corrida infinita.
 
 ## 1. Space Shooter (Nave)
 
-Classe principal: `com.java3d.engine.window.Window`
+Classe principal: `com.java3d.engine.window.Space`
 
 ### Controles
 *   **W / S**: Mover a nave verticalmente (Eixo Y).
@@ -24,12 +24,14 @@ Classe principal: `com.java3d.engine.window.Window`
 
 ## 2. Racing Demo (Carro)
 
-Classe principal: `com.java3d.engine.window.WindowRace`
+Classe principal: `com.java3d.engine.window.Race`
 
 ### Controles
 *   **W / Seta Cima**: Acelerar.
 *   **A / Seta Esquerda**: Virar para a esquerda.
 *   **D / Seta Direita**: Virar para a direita.
+*   **M**: Ligar/Desligar faróis.
+*   **C**: Alternar modos de câmera (Normal, Helicóptero, 1ª Pessoa, Traseira).
 
 ## Funcionalidades da Engine
 
