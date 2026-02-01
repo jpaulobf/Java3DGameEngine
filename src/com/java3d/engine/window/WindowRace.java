@@ -126,11 +126,18 @@ public class WindowRace extends JFrame {
                 float trackCenterX = scene.getRoad().getTrackX(carZ);
                 float carWorldX = trackCenterX + carPosOnTrackX;
 
-                // Calcular o ângulo da pista (tangente) para rotacionar o carro
-                float lookAhead = 2.0f; // Olhar 2 metros à frente
-                float nextTrackX = scene.getRoad().getTrackX(carZ + lookAhead);
-                float dx = nextTrackX - trackCenterX;
-                float trackAngle = (float) Math.toDegrees(Math.atan2(dx, lookAhead));
+                // 1. Calcular o ângulo da pista para o CARRO (tangente imediata)
+                float carLookAhead = 5.0f; 
+                float nextCarTrackX = scene.getRoad().getTrackX(carZ + carLookAhead);
+                float carDx = nextCarTrackX - trackCenterX;
+                float carTrackAngle = (float) Math.toDegrees(Math.atan2(carDx, carLookAhead));
+
+                // 2. Calcular o ângulo da pista para a CÂMERA (horizonte distante)
+                // Olhar bem à frente (200m) garante que a próxima reta fique centralizada na tela
+                float camLookAhead = 200.0f; 
+                float nextCamTrackX = scene.getRoad().getTrackX(carZ + camLookAhead);
+                float camDx = nextCamTrackX - trackCenterX;
+                float camTrackAngle = (float) Math.toDegrees(Math.atan2(camDx, camLookAhead));
 
                 // Aplicar movimento a TODAS as partes do carro
                 for (GameObject part : scene.getGameObjects()) {
@@ -142,12 +149,15 @@ public class WindowRace extends JFrame {
                     if (left && speed > 0) steeringAngle = -10;
                     else if (right && speed > 0) steeringAngle = 10;
 
-                    // Somar ângulo da pista com ângulo de esterçamento
-                    part.setRy(trackAngle + steeringAngle);
+                    // Alinhar carro com a pista (imediata) + esterçamento
+                    part.setRy(carTrackAngle + steeringAngle);
                 }
 
                 // Câmera segue o carro
                 cam.setPosition(carWorldX, 3, carZ - 8);
+                
+                // Rotacionar câmera para acompanhar o horizonte (manter a próxima reta centralizada)
+                cam.setYaw(-camTrackAngle);
 
                 // Atualizar Estrada (Gerar segmentos à frente do carro)
                 scene.getRoad().update(carZ);

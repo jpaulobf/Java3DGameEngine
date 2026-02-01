@@ -42,18 +42,17 @@ public class Road {
 
         // Recuar o início para garantir que a estrada seja desenhada sob e atrás da câmera
         startIndex -= 12;
-        if (startIndex < 0) startIndex = 0;
         
         int endIndex = startIndex + drawDistance;
         
         // Garantir que o mapa da estrada (posições X) esteja gerado até o fim da visão
-        generateRoadMap(endIndex + 1);
+        if (endIndex > 0) generateRoadMap(endIndex + 1);
         
         // Gerar segmentos à frente da câmera
         for (int i = startIndex; i < endIndex; i++) {
             float z = i * segmentLength;
-            float x = xPositions.get(i);
-            float nextX = xPositions.get(i+1);
+            float x = (i >= 0 && i < xPositions.size()) ? xPositions.get(i) : 0;
+            float nextX = (i + 1 >= 0 && i + 1 < xPositions.size()) ? xPositions.get(i+1) : 0;
             
             // Alternar cores para dar sensação de movimento (Cinza Claro / Cinza Escuro)
             Color color = (i % 2 == 0) ? new Color(105, 105, 105) : new Color(115, 115, 115);
