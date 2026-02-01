@@ -35,7 +35,7 @@ public class Renderer {
         }
     }
 
-    public void render(Graphics2D g, Scene scene, int width, int height) {
+    public void render(Graphics2D g, Scene scene, int width, int height, float speed) {
         // Inicializar buffers se necessário (ou se a janela redimensionar)
         if (image == null || w != width || h != height) {
             w = width;
@@ -52,7 +52,9 @@ public class Renderer {
         // Renderizar o Starfield primeiro (sem Z-buffer)
         Starfield starfield = scene.getStarfield();
         if (starfield != null) {
-            renderStarfield(starfield, scene.getCamera(), width, height);
+            Graphics2D ig = image.createGraphics();
+            renderStarfield(ig, starfield, scene.getCamera(), width, height, speed);
+            ig.dispose();
         }
 
         Camera camera = scene.getCamera();
@@ -158,7 +160,7 @@ public class Renderer {
         g.drawImage(image, 0, 0, null);
     }
 
-    private void renderStarfield(Starfield starfield, Camera cam, int width, int height) {
+    private void renderStarfield(Graphics2D g, Starfield starfield, Camera cam, int width, int height, float speed) {
         double fovRad = Math.toRadians(cam.getFov());
         double f = (width / 2.0) / Math.tan(fovRad / 2.0);
         float spread = starfield.getSpread();
@@ -203,7 +205,22 @@ public class Renderer {
                 int y = (int) starScreen.getY();
 
                 // Desenha o pixel se estiver dentro dos limites da tela
-                if (x >= 0 && x < w && y >= 0 && y < h) {
+                // Efeito de rastro (Warp Speed)
+                float baseSpeed = 0.3f;
+                if (speed > baseSpeed + 0.1f) {
+                    float centerX = width / 2.0f;
+                    float centerY = height / 2.0f;
+                    float vecX = x - centerX;
+                    float vecY = y - centerY;
+                    
+                    // O comprimento do rastro depende da velocidade e da distância ao centro
+                    float factor = Math.min(0.3f, (speed - baseSpeed) * 0.005f);
+                    int x2 = (int) (x - vecX * factor);
+                    int y2l = (int) (y - vecY * factor);
+
+                    g.setColor(Color.WHITE);
+                    g.drawLine(x, y, x2, y2l);
+                } else if (x >= 0 && x < w && y >= 0 && y < h) {
                     pixels[y * w + x] = Color.WHITE.getRGB();
                 }
             }

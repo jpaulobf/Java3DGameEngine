@@ -60,7 +60,7 @@ public class Window extends JFrame {
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 // Renderiza a cena passando o Graphics2D
-                renderer.render((Graphics2D) g, scene, getWidth(), getHeight());
+                renderer.render((Graphics2D) g, scene, getWidth(), getHeight(), currentSpeed);
             }
         };
         add(canvas);
@@ -104,7 +104,7 @@ public class Window extends JFrame {
 
                 GameObject spaceship = scene.getGameObjects().get(0);
                 float baseSpeed = 0.3f;
-                float maxSpeed = baseSpeed * 100.0f;
+                float maxSpeed = baseSpeed * 500.0f;
                 float acceleration = 0.1f;
 
                 if (space) {
@@ -152,9 +152,18 @@ public class Window extends JFrame {
                 Camera cam = scene.getCamera();
                 float camDist = 5.0f;
                 float camHeight = 2.0f;
+
+                // Camera Shake (Tremor) baseado na velocidade
+                float shakeX = 0;
+                float shakeY = 0;
+                if (currentSpeed > baseSpeed + 0.1f) {
+                    float shakeIntensity = (currentSpeed - baseSpeed) * 0.001f; // Ajuste 0.03f para mais ou menos tremor
+                    shakeX = (float) ((Math.random() - 0.5) * shakeIntensity);
+                    shakeY = (float) ((Math.random() - 0.5) * shakeIntensity);
+                }
                 
                 // A câmera fica atrás da nave (Z - dist), mas alinhada no X e Y
-                cam.setPosition(spaceship.getX(), spaceship.getY() + camHeight, spaceship.getZ() - camDist);
+                cam.setPosition(spaceship.getX() + shakeX, spaceship.getY() + camHeight + shakeY, spaceship.getZ() - camDist);
                 cam.setYaw(0); // Câmera sempre alinhada com o horizonte (não gira com a nave)
                 cam.setPitch(15); // Ajustado para deixar a nave mais acima na tela
 
