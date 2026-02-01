@@ -161,11 +161,40 @@ public class Renderer {
     private void renderStarfield(Starfield starfield, Camera cam, int width, int height) {
         double fovRad = Math.toRadians(cam.getFov());
         double f = (width / 2.0) / Math.tan(fovRad / 2.0);
+        float spread = starfield.getSpread();
+        float halfSpread = spread / 2.0f;
 
         for (Vertex star : starfield.getStars()) {
-            // Não há GameObject, então a posição do modelo é a posição do mundo.
-            // Apenas transformamos para a visão da câmera e projetamos.
-            Vertex starView = worldToView(star, cam);
+            // Calcular posição relativa com "wrap around" (efeito infinito)
+            // Isso faz com que as estrelas se repitam em blocos do tamanho de 'spread'
+            double dx = (star.getX() - cam.getX()) % spread;
+            if (dx > halfSpread) dx -= spread;
+            if (dx < -halfSpread) dx += spread;
+
+            double dy = (star.getY() - cam.getY()) % spread;
+            if (dy > halfSpread) dy -= spread;
+            if (dy < -halfSpread) dy += spread;
+
+            double dz = (star.getZ() - cam.getZ()) % spread;
+            if (dz > halfSpread) dz -= spread;
+            if (dz < -halfSpread) dz += spread;
+
+            // Rotação da Câmera (Manual aqui pois worldToView não suporta o wrap)
+            double yawRad = Math.toRadians(cam.getYaw());
+            double cosY = Math.cos(-yawRad);
+            double sinY = Math.sin(-yawRad);
+            
+            double x1 = dx * cosY - dz * sinY;
+            double z1 = dx * sinY + dz * cosY;
+            
+            double pitchRad = Math.toRadians(cam.getPitch());
+            double cosP = Math.cos(-pitchRad);
+            double sinP = Math.sin(-pitchRad);
+            
+            double y2 = dy * cosP - z1 * sinP;
+            double z2 = dy * sinP + z1 * cosP;
+
+            Vertex starView = new Vertex((float)x1, (float)y2, (float)z2);
 
             // Se a estrela estiver na frente da câmera
             if (starView.getZ() > 0.1) {

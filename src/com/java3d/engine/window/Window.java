@@ -23,7 +23,8 @@ public class Window extends JFrame {
     private Scene scene;
     private Renderer renderer;
     private JPanel canvas;
-    private boolean w, a, s, d; // Flags de controle da nave
+    private boolean w, a, s, d, space; // Flags de controle da nave
+    private float currentSpeed = 0.3f;
     
     // Opção para alternar entre Renderização via Software (CPU) e Hardware (GPU/OpenGL)
     public static final boolean USE_GPU = false; 
@@ -74,6 +75,7 @@ public class Window extends JFrame {
                     case KeyEvent.VK_A -> a = true;
                     case KeyEvent.VK_D -> d = true;
                     case KeyEvent.VK_F -> flatLight = !flatLight; // Toggle Iluminação
+                    case KeyEvent.VK_SPACE -> space = true;
                 }
             }
 
@@ -83,7 +85,8 @@ public class Window extends JFrame {
                     case KeyEvent.VK_W -> w = false;
                     case KeyEvent.VK_S -> s = false;
                     case KeyEvent.VK_A -> a = false;
-                    case KeyEvent.VK_D -> d = false;                    
+                    case KeyEvent.VK_D -> d = false;
+                    case KeyEvent.VK_SPACE -> space = false;
                 }
             }
         });
@@ -100,32 +103,59 @@ public class Window extends JFrame {
                 if (scene.getGameObjects().isEmpty()) return;
 
                 GameObject spaceship = scene.getGameObjects().get(0);
-                float moveSpeed = 0.2f;
-                float rotSpeed = 2.5f;
+                float baseSpeed = 0.3f;
+                float maxSpeed = baseSpeed * 100.0f;
+                float acceleration = 0.1f;
 
-                // Controle da Nave
-                if (a) spaceship.setRy(spaceship.getRy() + rotSpeed);
-                if (d) spaceship.setRy(spaceship.getRy() - rotSpeed);
-
-                if (w) {
-                    float rad = (float) Math.toRadians(spaceship.getRy());
-                    float dx = (float) Math.sin(rad) * moveSpeed;
-                    float dz = (float) Math.cos(rad) * moveSpeed;
-                    spaceship.setPosition(spaceship.getX() + dx, spaceship.getY(), spaceship.getZ() + dz);
+                if (space) {
+                    currentSpeed += acceleration;
+                    if (currentSpeed > maxSpeed) currentSpeed = maxSpeed;
+                } else {
+                    currentSpeed -= (5 * acceleration);
+                    if (currentSpeed < baseSpeed) currentSpeed = baseSpeed;
                 }
 
-                // Câmera em terceira pessoa seguindo a nave
+                float strafeSpeed = 0.15f; // Velocidade lateral
+                float tiltAngle = 20.0f; // Ângulo de inclinação ao virar
+
+                // 1. Movimento Automático para Frente (Eixo Z)
+                spaceship.setZ(spaceship.getZ() + currentSpeed);
+
+                // 2. Controle Lateral e Rotação Visual (Inclinação)
+                float targetRy = 0;
+                float targetRx = 0;
+
+                if (a) {
+                    spaceship.setX(spaceship.getX() - strafeSpeed);
+                    targetRy = -tiltAngle; // Inclina para esquerda
+                } else if (d) {
+                    spaceship.setX(spaceship.getX() + strafeSpeed);
+                    targetRy = tiltAngle; // Inclina para direita
+                }
+
+                if (w) {
+                    spaceship.setY(spaceship.getY() - strafeSpeed);
+                    targetRx = tiltAngle; // Empina o nariz para cima
+                } else if (s) {
+                    spaceship.setY(spaceship.getY() + strafeSpeed);
+                    targetRx = -tiltAngle; // Embica o nariz para baixo
+                }
+                
+                // Suavização da rotação (Lerp simples)
+                float currentRy = spaceship.getRy();
+                spaceship.setRy(currentRy + (targetRy - currentRy) * 0.1f);
+
+                float currentRx = spaceship.getRx();
+                spaceship.setRx(currentRx + (targetRx - currentRx) * 0.1f);
+
+                // 3. Câmera segue a posição da nave, mas com rotação fixa (olhando para frente)
                 Camera cam = scene.getCamera();
                 float camDist = 5.0f;
                 float camHeight = 2.0f;
-
-                float shipRad = (float) Math.toRadians(spaceship.getRy());
-                float camX = spaceship.getX() - (float) (Math.sin(shipRad) * camDist);
-                float camY = spaceship.getY() + camHeight;
-                float camZ = spaceship.getZ() - (float) (Math.cos(shipRad) * camDist);
                 
-                cam.setPosition(camX, camY, camZ);
-                cam.setYaw(spaceship.getRy()); // Câmera olha na mesma direção da nave
+                // A câmera fica atrás da nave (Z - dist), mas alinhada no X e Y
+                cam.setPosition(spaceship.getX(), spaceship.getY() + camHeight, spaceship.getZ() - camDist);
+                cam.setYaw(0); // Câmera sempre alinhada com o horizonte (não gira com a nave)
                 cam.setPitch(15); // Ajustado para deixar a nave mais acima na tela
 
                 canvas.repaint();

@@ -45,4 +45,22 @@ public class GameObject {
 
     public float getRz() { return rz; }
     public void setRz(float rz) { this.rz = rz; }
+
+    public void setMesh(Mesh mesh) {
+        this.mesh = mesh;
+    }
+
+    public void setX(float x) {
+        this.x = x;
+    }
+
+    public void setY(float y) {
+        this.y = y;
+    }
+
+    public void setZ(float z) {
+        this.z = z;
+    }
+
+    
 }

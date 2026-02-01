@@ -7,8 +7,10 @@ import java.util.Random;
 
 public class Starfield {
     private final List<Vertex> stars;
+    private float spread;
 
     public Starfield(int numStars, float spread) {
+        this.spread = spread;
         this.stars = new ArrayList<>(numStars);
         Random random = new Random();
         for (int i = 0; i < numStars; i++) {
@@ -21,5 +23,9 @@ public class Starfield {
 
     public List<Vertex> getStars() {
         return stars;
+    }
+
+    public float getSpread() {
+        return spread;
     }
 }
