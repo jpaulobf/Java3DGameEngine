@@ -13,6 +13,7 @@ public class Scene {
     private Road road;
     private int backgroundColor = 0x000000; // Cor de fundo padrão (Preto)
     private int groundColor = -1; // Cor do chão (-1 = desativado/transparente)
+    private Clouds clouds;
 
     public Scene() {
         this.gameObjects = new ArrayList<>();
@@ -21,6 +22,7 @@ public class Scene {
         this.pointLight = new PointLight(0, 5, 0); // Luz padrão acima da origem
         this.starfield = null;
         this.road = null;
+        this.clouds = new Clouds();
     }
 
     public void addGameObject(GameObject gameObject) {
@@ -81,5 +83,9 @@ public class Scene {
 
     public void setGroundColor(int groundColor) {
         this.groundColor = groundColor;
+    }
+
+    public Clouds getClouds() {
+        return clouds;
     }
 }

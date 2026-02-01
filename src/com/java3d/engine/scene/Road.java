@@ -12,14 +12,16 @@ public class Road {
         public float width;
         public float length;
         public Color color;
+        public float brightness;
 
-        public Segment(float z, float x, float endX, float width, float length, Color color) {
+        public Segment(float z, float x, float endX, float width, float length, Color color, float brightness) {
             this.z = z;
             this.x = x;
             this.endX = endX;
             this.width = width;
             this.length = length;
             this.color = color;
+            this.brightness = brightness;
         }
     }
 
@@ -33,6 +35,8 @@ public class Road {
     private int maxIndexGenerated = -1;
     private float lastX = 0;
     private float lastDx = 0;
+    private float brightness = 1.0f;
+    private boolean headlightsOn = false;
 
     public void update(float cameraZ) {
         segments.clear();
@@ -54,11 +58,25 @@ public class Road {
             float x = (i >= 0 && i < xPositions.size()) ? xPositions.get(i) : 0;
             float nextX = (i + 1 >= 0 && i + 1 < xPositions.size()) ? xPositions.get(i+1) : 0;
             
+            // Calcular brilho local (Faróis)
+            float localBrightness = brightness;
+            if (headlightsOn) {
+                float dist = z - cameraZ;
+                // Ilumina segmentos à frente do carro (até 250 unidades)
+                if (dist > -50 && dist < 250) {
+                    float lightIntensity = 1.0f - (dist / 250.0f);
+                    localBrightness += lightIntensity; // Soma a luz do farol
+                    if (localBrightness > 1.0f) localBrightness = 1.0f;
+                }
+            }
+
             // Alternar cores para dar sensação de movimento (Cinza Claro / Cinza Escuro)
-            Color color = (i % 2 == 0) ? new Color(105, 105, 105) : new Color(115, 115, 115);
+            int c1 = (int) (105 * localBrightness);
+            int c2 = (int) (115 * localBrightness);
+            Color color = (i % 2 == 0) ? new Color(c1, c1, c1) : new Color(c2, c2, c2);
             
             // Faixas laterais (Zebras) podem ser adicionadas aqui no futuro
-            segments.add(new Segment(z, x, nextX, roadWidth, segmentLength, color));
+            segments.add(new Segment(z, x, nextX, roadWidth, segmentLength, color, localBrightness));
         }
     }
     
@@ -125,5 +143,17 @@ public class Road {
         float endX = xPositions.get(index + 1);
         float segmentProgress = (z % segmentLength) / segmentLength;
         return startX + (endX - startX) * segmentProgress;
+    }
+
+    public float getRoadWidth() {
+        return roadWidth;
+    }
+
+    public void setBrightness(float brightness) {
+        this.brightness = Math.max(0.1f, Math.min(1.0f, brightness));
+    }
+
+    public void setHeadlightsOn(boolean headlightsOn) {
+        this.headlightsOn = headlightsOn;
     }
 }

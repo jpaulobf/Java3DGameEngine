@@ -6,6 +6,7 @@ import com.java3d.engine.geometry.Vertex;
 import com.java3d.engine.scene.Camera;
 import com.java3d.engine.scene.GameObject;
 import com.java3d.engine.scene.Laser;
+import com.java3d.engine.scene.Cloud;
 import com.java3d.engine.scene.Starfield;
 import com.java3d.engine.scene.Road;
 import com.java3d.engine.scene.PointLight;
@@ -69,6 +70,13 @@ public class Renderer {
             if (clampedHorizon < height) Arrays.fill(pixels, clampedHorizon * width, pixels.length, scene.getGroundColor());
         } else {
             Arrays.fill(pixels, scene.getBackgroundColor()); // Limpa tudo com a cor de fundo
+        }
+
+        // Renderizar Nuvens (2D no Horizonte)
+        if (!scene.getClouds().getItems().isEmpty()) {
+            Graphics2D ig = image.createGraphics();
+            renderClouds(ig, scene, width, height);
+            ig.dispose();
         }
 
         // Renderizar o Starfield primeiro (sem Z-buffer)
@@ -191,6 +199,43 @@ public class Renderer {
         g.drawImage(image, 0, 0, null);
     }
 
+    private void renderClouds(Graphics2D g, Scene scene, int width, int height) {
+        Camera cam = scene.getCamera();
+        List<Cloud> clouds = scene.getClouds().getItems();
+        
+        double pitchRad = Math.toRadians(cam.getPitch());
+        double fovRad = Math.toRadians(cam.getFov());
+        double f = (width / 2.0) / Math.tan(fovRad / 2.0);
+        
+        // Calcular a linha do horizonte
+        int horizonY = (int) (height / 2.0 - f * Math.tan(pitchRad));
+        
+        // Fator de conversão: Quantos pixels por grau de rotação?
+        // Se FOV é X graus e a tela tem W pixels, então W/X pixels por grau.
+        float pixelsPerDegree = width / cam.getFov();
+
+        for (Cloud cloud : clouds) {
+            // Calcular posição X relativa ao Yaw da câmera
+            // Cloud.x é um ângulo (0-360). Cam.yaw é a rotação.
+            float relativeAngle = cloud.getX() - cam.getYaw();
+            
+            // Normalizar para -180 a 180 para lidar com o wrap-around
+            while (relativeAngle < -180) relativeAngle += 360;
+            while (relativeAngle > 180) relativeAngle -= 360;
+
+            int screenX = (int) (width / 2.0 + relativeAngle * pixelsPerDegree);
+            int screenY = (int) (horizonY - cloud.getY()); // Y é altura ACIMA do horizonte
+
+            // Desenhar apenas se estiver visível na tela (com margem)
+            if (screenX + cloud.getWidth() > 0 && screenX - cloud.getWidth() < width) {
+                g.setColor(cloud.getColor());
+                int w = (int)cloud.getWidth();
+                int h = (int)cloud.getHeight();
+                g.fillRoundRect(screenX - w/2, screenY - h/2, w, h, h, h);
+            }
+        }
+    }
+
     private void renderStarfield(Graphics2D g, Starfield starfield, Camera cam, int width, int height, float speed) {
         double fovRad = Math.toRadians(cam.getFov());
         double f = (width / 2.0) / Math.tan(fovRad / 2.0);
@@ -302,12 +347,13 @@ public class Renderer {
             // 2. Faixa Dupla Amarela (Centro) - Segmentada
             // Verifica se o índice do segmento é par para desenhar a faixa (efeito tracejado)
             if (Math.round(seg.z / seg.length) % 2 == 0) {
+                Color yellow = applyBrightness(Color.YELLOW, seg.brightness);
                 // Linha Esquerda
                 renderQuad(trianglesToRaster, cam, lightView, f, width, height, 
-                           seg.x - 0.25f, seg.x - 0.10f, seg.endX - 0.10f, seg.endX - 0.25f, -1.99f, seg.z, seg.length, Color.YELLOW, 0, 1, 0);
+                           seg.x - 0.25f, seg.x - 0.10f, seg.endX - 0.10f, seg.endX - 0.25f, -1.99f, seg.z, seg.length, yellow, 0, 1, 0);
                 // Linha Direita
                 renderQuad(trianglesToRaster, cam, lightView, f, width, height, 
-                           seg.x + 0.10f, seg.x + 0.25f, seg.endX + 0.25f, seg.endX + 0.10f, -1.99f, seg.z, seg.length, Color.YELLOW, 0, 1, 0);
+                           seg.x + 0.10f, seg.x + 0.25f, seg.endX + 0.25f, seg.endX + 0.10f, -1.99f, seg.z, seg.length, yellow, 0, 1, 0);
             }
 
             // 3. Guardrails (Barreiras laterais)
@@ -316,16 +362,19 @@ public class Renderer {
             Color railColor = isRed ? Color.RED : Color.WHITE;
             float railHeight = 0.5f;
             float railThickness = 0.3f;
+            
+            Color finalRailColor = applyBrightness(railColor, seg.brightness);
+            Color gray = applyBrightness(Color.LIGHT_GRAY, seg.brightness);
 
             // Esquerda (Parede interna + Topo)
             // Parede interna esquerda aponta para a direita (1, 0, 0)
-            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x - halfW, seg.endX - halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, railColor, 1, 0, 0);
-            renderQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x - halfW - railThickness, seg.x - halfW, seg.endX - halfW, seg.endX - halfW - railThickness, -2.0f + railHeight, seg.z, seg.length, Color.LIGHT_GRAY, 0, 1, 0);
+            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x - halfW, seg.endX - halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, finalRailColor, 1, 0, 0);
+            renderQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x - halfW - railThickness, seg.x - halfW, seg.endX - halfW, seg.endX - halfW - railThickness, -2.0f + railHeight, seg.z, seg.length, gray, 0, 1, 0);
 
             // Direita (Parede interna + Topo)
             // Parede interna direita aponta para a esquerda (-1, 0, 0)
-            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x + halfW, seg.endX + halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, railColor, -1, 0, 0);
-            renderQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x + halfW, seg.x + halfW + railThickness, seg.endX + halfW + railThickness, seg.endX + halfW, -2.0f + railHeight, seg.z, seg.length, Color.LIGHT_GRAY, 0, 1, 0);
+            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x + halfW, seg.endX + halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, finalRailColor, -1, 0, 0);
+            renderQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x + halfW, seg.x + halfW + railThickness, seg.endX + halfW + railThickness, seg.endX + halfW, -2.0f + railHeight, seg.z, seg.length, gray, 0, 1, 0);
         }
     }
 
@@ -402,6 +451,14 @@ public class Renderer {
         }
     }
 
+    private Color applyBrightness(Color c, float brightness) {
+        return new Color(
+            Math.min(255, (int)(c.getRed() * brightness)),
+            Math.min(255, (int)(c.getGreen() * brightness)),
+            Math.min(255, (int)(c.getBlue() * brightness))
+        );
+    }
+
     private float calculateIntensity(Vertex v, float nx, float ny, float nz, Vertex lightPos) {
         // Normalizar a normal
         float nLen = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
@@ -456,6 +513,7 @@ public class Renderer {
         int r = color.getRed();
         int g = color.getGreen();
         int b = color.getBlue();
+        int a = color.getAlpha();
 
         for (int y = minY; y <= maxY; y++) {
             for (int x = minX; x <= maxX; x++) {
@@ -481,7 +539,20 @@ public class Renderer {
                         int finalG = Math.min(255, (int)(g * intensity));
                         int finalB = Math.min(255, (int)(b * intensity));
                         
-                        pixels[index] = (finalR << 16) | (finalG << 8) | finalB;
+                        if (a < 255) {
+                            // Alpha Blending Manual
+                            int bg = pixels[index];
+                            int rBg = (bg >> 16) & 0xFF;
+                            int gBg = (bg >> 8) & 0xFF;
+                            int bBg = bg & 0xFF;
+
+                            int rBlend = (finalR * a + rBg * (255 - a)) / 255;
+                            int gBlend = (finalG * a + gBg * (255 - a)) / 255;
+                            int bBlend = (finalB * a + bBg * (255 - a)) / 255;
+                            pixels[index] = (rBlend << 16) | (gBlend << 8) | bBlend;
+                        } else {
+                            pixels[index] = (finalR << 16) | (finalG << 8) | finalB;
+                        }
                     }
                 }
             }

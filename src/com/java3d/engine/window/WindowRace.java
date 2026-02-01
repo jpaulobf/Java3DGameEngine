@@ -1,13 +1,11 @@
 package com.java3d.engine.window;
 
-import com.java3d.engine.geometry.Mesh;
-import com.java3d.engine.geometry.Triangle;
-import com.java3d.engine.geometry.Vertex;
 import com.java3d.engine.renderer.Renderer;
 import com.java3d.engine.scene.Camera;
 import com.java3d.engine.scene.GameObject;
 import com.java3d.engine.scene.Road;
 import com.java3d.engine.scene.Scene;
+import com.java3d.engine.scene.Car;
 
 import java.awt.Color;
 import java.awt.Graphics;
@@ -16,8 +14,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.util.ArrayList;
-import java.util.List;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -29,9 +25,9 @@ public class WindowRace extends JFrame {
     private Renderer renderer;
     private JPanel canvas;
     private boolean left, right, accel;
-    private float carPosOnTrackX = 0.0f; // Posição X do carro relativa ao centro da pista
-    private float speed = 0.0f;
-    private float maxSpeed = 1.5f;
+    private float dayCycleTime = 0.0f;
+    private float dayCycleDuration = 120.0f; // Duração do ciclo em segundos (2 minutos)
+    private Car car;
     
     public WindowRace() {
         setTitle("Java 3D Racing Demo");
@@ -56,10 +52,9 @@ public class WindowRace extends JFrame {
         Road road = new Road();
         scene.setRoad(road);
 
-        // Adicionar o "Carro" (Modelo customizado dividido em partes coloridas)
-        List<GameObject> carParts = createCarParts();
-        for (GameObject part : carParts) {
-            part.setPosition(0, -1.25f, 0); // Posicionado logo acima do chão (-2.0)
+        // Adicionar o "Carro"
+        car = new Car();
+        for (GameObject part : car.getParts()) {
             scene.addGameObject(part);
         }
 
@@ -67,7 +62,7 @@ public class WindowRace extends JFrame {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
-                renderer.render((Graphics2D) g, scene, getWidth(), getHeight(), speed * 10);
+                renderer.render((Graphics2D) g, scene, getWidth(), getHeight(), car.getSpeed() * 10);
             }
         };
         add(canvas);
@@ -80,6 +75,7 @@ public class WindowRace extends JFrame {
                     case KeyEvent.VK_A, KeyEvent.VK_LEFT -> left = true;
                     case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> right = true;
                     case KeyEvent.VK_W, KeyEvent.VK_UP -> accel = true;
+                    case KeyEvent.VK_M -> car.toggleHeadlights(); // Alternar faróis
                 }
             }
 
@@ -101,69 +97,41 @@ public class WindowRace extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 Camera cam = scene.getCamera();
 
-                // Aceleração
-                if (accel) {
-                    speed += 0.02f;
-                    if (speed > maxSpeed) speed = maxSpeed;
-                } else {
-                    speed -= 0.01f;
-                    if (speed < 0) speed = 0;
-                }
+                // Atualizar Ciclo Dia/Noite
+                updateDayNightCycle(0.016f);
 
-                // Movimento Lateral (relativo à pista)
-                float turnSpeed = 0.2f;
-                if (left && speed > 0) {
-                    carPosOnTrackX -= turnSpeed;
-                } else if (right && speed > 0) {
-                    carPosOnTrackX += turnSpeed;
-                }
-
-                // Usar a primeira parte (Chassi) como referência para Z
-                GameObject carRef = scene.getGameObjects().get(0);
-                float carZ = carRef.getZ() + speed; // Calcula a nova posição Z
-
-                // Obter o X do centro da pista na nova posição Z
-                float trackCenterX = scene.getRoad().getTrackX(carZ);
-                float carWorldX = trackCenterX + carPosOnTrackX;
-
-                // 1. Calcular o ângulo da pista para o CARRO (tangente imediata)
-                float carLookAhead = 5.0f; 
-                float nextCarTrackX = scene.getRoad().getTrackX(carZ + carLookAhead);
-                float carDx = nextCarTrackX - trackCenterX;
-                float carTrackAngle = (float) Math.toDegrees(Math.atan2(carDx, carLookAhead));
+                // Atualizar Carro
+                car.update(accel, left, right, scene.getRoad());
 
                 // 2. Calcular o ângulo da pista para a CÂMERA (horizonte distante)
                 // Olhar bem à frente (200m) garante que a próxima reta fique centralizada na tela
                 float camLookAhead = 200.0f; 
-                float nextCamTrackX = scene.getRoad().getTrackX(carZ + camLookAhead);
+                float trackCenterX = scene.getRoad().getTrackX(car.getZ());
+                float nextCamTrackX = scene.getRoad().getTrackX(car.getZ() + camLookAhead);
                 float camDx = nextCamTrackX - trackCenterX;
                 float camTrackAngle = (float) Math.toDegrees(Math.atan2(camDx, camLookAhead));
 
-                // Aplicar movimento a TODAS as partes do carro
-                for (GameObject part : scene.getGameObjects()) {
-                    part.setX(carWorldX);
-                    part.setZ(carZ);
-
-                    // Inclinação visual (Esterçamento)
-                    float steeringAngle = 0;
-                    if (left && speed > 0) steeringAngle = -10;
-                    else if (right && speed > 0) steeringAngle = 10;
-
-                    // Alinhar carro com a pista (imediata) + esterçamento
-                    part.setRy(carTrackAngle + steeringAngle);
-                }
-
-                // Câmera segue o carro
-                cam.setPosition(carWorldX, 3, carZ - 8);
+                // Câmera segue o carro (com efeito de shake se houver colisão)
+                float collisionShake = car.getCollisionShake();
+                float shakeX = (float) ((Math.random() - 0.5) * collisionShake);
+                float shakeY = (float) ((Math.random() - 0.5) * collisionShake);
+                cam.setPosition(car.getX() + shakeX, 3 + shakeY, car.getZ() - 8);
                 
                 // Rotacionar câmera para acompanhar o horizonte (manter a próxima reta centralizada)
                 cam.setYaw(-camTrackAngle);
 
+                // Atualizar estado dos faróis na estrada
+                scene.getRoad().setHeadlightsOn(car.isHeadlightsOn());
+
+                // Atualizar Nuvens (Vento e Parallax)
+                float windSpeed = 0.0005f; // Vento bem mais devagar
+                scene.getClouds().update(windSpeed, camTrackAngle);
+
                 // Atualizar Estrada (Gerar segmentos à frente do carro)
-                scene.getRoad().update(carZ);
+                scene.getRoad().update(car.getZ());
 
                 // Atualizar Posição do Sol (Luz) para seguir o carro
-                scene.getPointLight().setPosition(carWorldX - 60, 100, carZ + 60);
+                scene.getPointLight().setPosition(car.getX() - 60, 100, car.getZ() + 60);
 
                 canvas.repaint();
             }
@@ -177,72 +145,71 @@ public class WindowRace extends JFrame {
         });
     }
 
-    private List<GameObject> createCarParts() {
-        List<GameObject> parts = new ArrayList<>();
+    private void updateDayNightCycle(float dt) {
+        dayCycleTime += dt;
+        if (dayCycleTime >= dayCycleDuration) dayCycleTime %= dayCycleDuration;
 
-        // Cores
-        Color redBody = new Color(220, 20, 60); // Vermelho Carmesim
-        Color darkRed = new Color(100, 0, 0);   // Vermelho Escuro (Detalhes/Cabine)
-        Color spoilerColor = new Color(40, 40, 40); // Cinza Quase Preto
-        Color tireColor = new Color(20, 20, 20);    // Preto Pneu
-        
-        // Chassi Principal (Corpo do carro)
-        List<Triangle> chassiTris = new ArrayList<>();
-        addBox(chassiTris, 0, 0, 0, 1.8f, 0.6f, 4.0f);
-        parts.add(new GameObject(new Mesh(chassiTris), redBody));
-        
-        // Cabine (Vidros/Teto) - Recuada um pouco
-        List<Triangle> cabinTris = new ArrayList<>();
-        addBox(cabinTris, 0, 0.5f, -0.5f, 1.4f, 0.5f, 2.0f);
-        parts.add(new GameObject(new Mesh(cabinTris), darkRed));
-        
-        // Spoiler Traseiro
-        List<Triangle> spoilerTris = new ArrayList<>();
-        addBox(spoilerTris, -0.7f, 0.5f, -1.8f, 0.1f, 0.4f, 0.1f); // Pilar Esq
-        addBox(spoilerTris, 0.7f, 0.5f, -1.8f, 0.1f, 0.4f, 0.1f);  // Pilar Dir
-        addBox(spoilerTris, 0, 0.8f, -1.8f, 1.8f, 0.1f, 0.4f);     // Asa
-        parts.add(new GameObject(new Mesh(spoilerTris), spoilerColor));
-        
-        // Rodas (Simplificadas)
-        List<Triangle> wheelTris = new ArrayList<>();
-        float wheelY = -0.3f;
-        float wheelX = 0.8f;
-        float wheelZ = 1.2f;
-        float wSize = 0.6f;
-        addBox(wheelTris, -wheelX, wheelY,  wheelZ, 0.3f, wSize, wSize); // Traseira Esq
-        addBox(wheelTris,  wheelX, wheelY,  wheelZ, 0.3f, wSize, wSize); // Traseira Dir
-        addBox(wheelTris, -wheelX, wheelY, -wheelZ, 0.3f, wSize, wSize); // Dianteira Esq
-        addBox(wheelTris,  wheelX, wheelY, -wheelZ, 0.3f, wSize, wSize); // Dianteira Dir
-        parts.add(new GameObject(new Mesh(wheelTris), tireColor));
+        float t = dayCycleTime / dayCycleDuration; // 0.0 a 1.0
 
-        return parts;
+        // Cores do Céu
+        Color daySky = new Color(135, 206, 235);     // Sky Blue
+        Color sunsetSky = new Color(255, 69, 0);     // Orange Red
+        Color nightSky = new Color(10, 10, 30);      // Very Dark Blue
+        Color dawnSky = new Color(219, 112, 147);    // Pale Violet Red
+
+        // Cores do Chão (Grama)
+        Color dayGround = new Color(34, 139, 34);    // Forest Green
+        Color nightGround = new Color(5, 20, 5);     // Very Dark Green
+
+        Color currentSky;
+        Color currentGround;
+
+        if (t < 0.3f) { // Dia (30% do tempo)
+            currentSky = daySky;
+            currentGround = dayGround;
+        } else if (t < 0.4f) { // Entardecer (10% do tempo)
+            float localT = (t - 0.3f) / 0.1f;
+            currentSky = lerpColor(daySky, sunsetSky, localT);
+            currentGround = lerpColor(dayGround, nightGround, localT * 0.5f);
+        } else if (t < 0.5f) { // Anoitecer (10% do tempo)
+            float localT = (t - 0.4f) / 0.1f;
+            currentSky = lerpColor(sunsetSky, nightSky, localT);
+            currentGround = lerpColor(lerpColor(dayGround, nightGround, 0.5f), nightGround, localT);
+        } else if (t < 0.8f) { // Noite (30% do tempo)
+            currentSky = nightSky;
+            currentGround = nightGround;
+        } else if (t < 0.9f) { // Madrugada/Amanhecer (10% do tempo)
+            float localT = (t - 0.8f) / 0.1f;
+            currentSky = lerpColor(nightSky, dawnSky, localT);
+            currentGround = lerpColor(nightGround, dayGround, localT * 0.5f);
+        } else { // Nascer do Sol (10% do tempo)
+            float localT = (t - 0.9f) / 0.1f;
+            currentSky = lerpColor(dawnSky, daySky, localT);
+            currentGround = lerpColor(lerpColor(nightGround, dayGround, 0.5f), dayGround, localT);
+        }
+
+        scene.setBackgroundColor(currentSky.getRGB());
+        scene.setGroundColor(currentGround.getRGB());
+
+        // Calcular brilho da pista baseado no ciclo (Dia = 1.0, Noite = 0.3)
+        float brightness = 1.0f;
+        if (t >= 0.3f && t < 0.4f) { // Entardecer
+             brightness = 1.0f - ((t - 0.3f) / 0.1f) * 0.7f;
+        } else if (t >= 0.4f && t < 0.8f) { // Noite
+             brightness = 0.3f;
+        } else if (t >= 0.8f && t < 0.9f) { // Amanhecer
+             brightness = 0.3f + ((t - 0.8f) / 0.1f) * 0.7f;
+        }
+        scene.getRoad().setBrightness(brightness);
+
+        scene.getClouds().updateColor(brightness);
     }
-
-    private void addBox(List<Triangle> triangles, float x, float y, float z, float w, float h, float d) {
-        float hw = w / 2;
-        float hh = h / 2;
-        float hd = d / 2;
-
-        Vertex v1 = new Vertex(x - hw, y - hh, z - hd);
-        Vertex v2 = new Vertex(x + hw, y - hh, z - hd);
-        Vertex v3 = new Vertex(x + hw, y + hh, z - hd);
-        Vertex v4 = new Vertex(x - hw, y + hh, z - hd);
-        Vertex v5 = new Vertex(x - hw, y - hh, z + hd);
-        Vertex v6 = new Vertex(x + hw, y - hh, z + hd);
-        Vertex v7 = new Vertex(x + hw, y + hh, z + hd);
-        Vertex v8 = new Vertex(x - hw, y + hh, z + hd);
-
-        // Frente
-        triangles.add(new Triangle(v1, v2, v3)); triangles.add(new Triangle(v1, v3, v4));
-        // Trás
-        triangles.add(new Triangle(v6, v5, v8)); triangles.add(new Triangle(v6, v8, v7));
-        // Topo
-        triangles.add(new Triangle(v4, v3, v7)); triangles.add(new Triangle(v4, v7, v8));
-        // Base
-        triangles.add(new Triangle(v1, v5, v6)); triangles.add(new Triangle(v1, v6, v2));
-        // Direita
-        triangles.add(new Triangle(v2, v6, v7)); triangles.add(new Triangle(v2, v7, v3));
-        // Esquerda
-        triangles.add(new Triangle(v5, v1, v4)); triangles.add(new Triangle(v5, v4, v8));
+    private Color lerpColor(Color c1, Color c2, float t) {
+        int r = (int) (c1.getRed() + t * (c2.getRed() - c1.getRed()));
+        int g = (int) (c1.getGreen() + t * (c2.getGreen() - c1.getGreen()));
+        int b = (int) (c1.getBlue() + t * (c2.getBlue() - c1.getBlue()));
+        return new Color(Math.min(255, Math.max(0, r)), 
+                         Math.min(255, Math.max(0, g)), 
+                         Math.min(255, Math.max(0, b)));
     }
 }
