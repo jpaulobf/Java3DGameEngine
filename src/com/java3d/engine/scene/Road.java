@@ -38,7 +38,7 @@ public class Road {
             float z = i * segmentLength;
             
             // Alternar cores para dar sensação de movimento (Cinza Claro / Cinza Escuro)
-            Color color = (i % 2 == 0) ? new Color(100, 100, 100) : new Color(160, 160, 160);
+            Color color = (i % 2 == 0) ? new Color(105, 105, 105) : new Color(115, 115, 115);
             
             // Faixas laterais (Zebras) podem ser adicionadas aqui no futuro
             segments.add(new Segment(z, roadWidth, segmentLength, color));

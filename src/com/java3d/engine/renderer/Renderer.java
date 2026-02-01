@@ -285,52 +285,130 @@ public class Renderer {
 
     private void renderRoad(Road road, Camera cam, Vertex lightView, double f, int width, int height, List<ProjectedTriangle> trianglesToRaster) {
         for (Road.Segment seg : road.getSegments()) {
-            // Criar os 4 vértices do segmento (Quad)
-            // Y é fixo em -2 (chão)
-            float y = -2.0f;
             float halfW = seg.width / 2.0f;
-            
-            Vertex v1 = new Vertex(-halfW, y, seg.z);              // Frente Esquerda
-            Vertex v2 = new Vertex( halfW, y, seg.z);              // Frente Direita
-            Vertex v3 = new Vertex( halfW, y, seg.z + seg.length); // Trás Direita
-            Vertex v4 = new Vertex(-halfW, y, seg.z + seg.length); // Trás Esquerda
 
-            // Dividir o Quad em 2 Triângulos
-            Triangle t1 = new Triangle(v1, v2, v3);
-            Triangle t2 = new Triangle(v1, v3, v4);
-            
-            List<Triangle> roadTris = Arrays.asList(t1, t2);
+            // 1. Estrada Principal
+            // Normal (0, 1, 0) -> Aponta para cima
+            renderQuad(trianglesToRaster, cam, lightView, f, width, height, 
+                       -halfW, halfW, -2.0f, seg.z, seg.length, seg.color, 0, 1, 0);
 
-            for (Triangle t : roadTris) {
-                // Transformar para View Space
-                Vertex v1View = worldToView(t.v1, cam);
-                Vertex v2View = worldToView(t.v2, cam);
-                Vertex v3View = worldToView(t.v3, cam);
+            // 2. Faixa Dupla Amarela (Centro) - Segmentada
+            // Verifica se o índice do segmento é par para desenhar a faixa (efeito tracejado)
+            if (Math.round(seg.z / seg.length) % 2 == 0) {
+                // Linha Esquerda
+                renderQuad(trianglesToRaster, cam, lightView, f, width, height, 
+                           -0.25f, -0.10f, -1.99f, seg.z, seg.length, Color.YELLOW, 0, 1, 0);
+                // Linha Direita
+                renderQuad(trianglesToRaster, cam, lightView, f, width, height, 
+                           0.10f, 0.25f, -1.99f, seg.z, seg.length, Color.YELLOW, 0, 1, 0);
+            }
 
-                // Clipping
-                for (Triangle clipped : clipTriangle(v1View, v2View, v3View)) {
-                    float i1, i2, i3;
-                    
-                    // Iluminação simples para a estrada (Flat ou Gouraud)
-                    // Como a estrada é plana, a normal é sempre (0, 1, 0)
-                    // Vamos usar uma intensidade fixa baseada na cor para simplificar e manter o estilo "Arcade"
-                    // Mas podemos aplicar a luz se quisermos
-                    if (Window.flatLight) {
-                        i1 = i2 = i3 = 1.0f; // Full bright para estilo arcade
-                    } else {
-                        i1 = calculateIntensity(clipped.getV1(), clipped.getV1(), lightView);
-                        i2 = calculateIntensity(clipped.getV2(), clipped.getV2(), lightView);
-                        i3 = calculateIntensity(clipped.getV3(), clipped.getV3(), lightView);
-                    }
+            // 3. Guardrails (Barreiras laterais)
+            // Alternar cores (Vermelho e Branco) para estilo de corrida
+            boolean isRed = Math.round(seg.z / seg.length) % 2 == 0;
+            Color railColor = isRed ? Color.RED : Color.WHITE;
+            float railHeight = 0.5f;
+            float railThickness = 0.3f;
 
-                    Vertex p1 = projectToScreen(clipped.getV1(), f, width, height);
-                    Vertex p2 = projectToScreen(clipped.getV2(), f, width, height);
-                    Vertex p3 = projectToScreen(clipped.getV3(), f, width, height);
+            // Esquerda (Parede interna + Topo)
+            // Parede interna esquerda aponta para a direita (1, 0, 0)
+            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, -halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, railColor, 1, 0, 0);
+            renderQuad(trianglesToRaster, cam, lightView, f, width, height, -halfW - railThickness, -halfW, -2.0f + railHeight, seg.z, seg.length, Color.LIGHT_GRAY, 0, 1, 0);
 
-                    trianglesToRaster.add(new ProjectedTriangle(p1, p2, p3, seg.color, i1, i2, i3));
-                }
+            // Direita (Parede interna + Topo)
+            // Parede interna direita aponta para a esquerda (-1, 0, 0)
+            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, railColor, -1, 0, 0);
+            renderQuad(trianglesToRaster, cam, lightView, f, width, height, halfW, halfW + railThickness, -2.0f + railHeight, seg.z, seg.length, Color.LIGHT_GRAY, 0, 1, 0);
+        }
+    }
+
+    private void renderQuad(List<ProjectedTriangle> trianglesToRaster, Camera cam, Vertex lightView, double f, int width, int height,
+                            float xMin, float xMax, float y, float z, float length, Color color, float nx, float ny, float nz) {
+        Vertex v1 = new Vertex(xMin, y, z);          // Frente Esquerda
+        Vertex v2 = new Vertex(xMax, y, z);          // Frente Direita
+        Vertex v3 = new Vertex(xMax, y, z + length); // Trás Direita
+        Vertex v4 = new Vertex(xMin, y, z + length); // Trás Esquerda
+
+        // Dividir o Quad em 2 Triângulos
+        Triangle t1 = new Triangle(v1, v2, v3);
+        Triangle t2 = new Triangle(v1, v3, v4);
+        
+        List<Triangle> tris = Arrays.asList(t1, t2);
+
+        for (Triangle t : tris) {
+            // Transformar para View Space
+            Vertex v1View = worldToView(t.v1, cam);
+            Vertex v2View = worldToView(t.v2, cam);
+            Vertex v3View = worldToView(t.v3, cam);
+
+            // Clipping
+            for (Triangle clipped : clipTriangle(v1View, v2View, v3View)) {
+                float i1, i2, i3;
+                
+                // Usar a normal explícita para calcular a iluminação correta
+                i1 = calculateIntensity(clipped.getV1(), nx, ny, nz, lightView);
+                i2 = calculateIntensity(clipped.getV2(), nx, ny, nz, lightView);
+                i3 = calculateIntensity(clipped.getV3(), nx, ny, nz, lightView);
+
+                Vertex p1 = projectToScreen(clipped.getV1(), f, width, height);
+                Vertex p2 = projectToScreen(clipped.getV2(), f, width, height);
+                Vertex p3 = projectToScreen(clipped.getV3(), f, width, height);
+
+                trianglesToRaster.add(new ProjectedTriangle(p1, p2, p3, color, i1, i2, i3));
             }
         }
+    }
+
+    private void renderVerticalQuad(List<ProjectedTriangle> trianglesToRaster, Camera cam, Vertex lightView, double f, int width, int height,
+                                    float x, float yMin, float yMax, float z, float length, Color color, float nx, float ny, float nz) {
+        Vertex v1 = new Vertex(x, yMin, z);          // Base Frente
+        Vertex v2 = new Vertex(x, yMax, z);          // Topo Frente
+        Vertex v3 = new Vertex(x, yMax, z + length); // Topo Trás
+        Vertex v4 = new Vertex(x, yMin, z + length); // Base Trás
+
+        // Dividir em 2 Triângulos
+        Triangle t1 = new Triangle(v1, v2, v3);
+        Triangle t2 = new Triangle(v1, v3, v4);
+        
+        List<Triangle> tris = Arrays.asList(t1, t2);
+
+        for (Triangle t : tris) {
+            // Transformar para View Space
+            Vertex v1View = worldToView(t.v1, cam);
+            Vertex v2View = worldToView(t.v2, cam);
+            Vertex v3View = worldToView(t.v3, cam);
+
+            // Clipping
+            for (Triangle clipped : clipTriangle(v1View, v2View, v3View)) {
+                float i1, i2, i3;
+                
+                i1 = calculateIntensity(clipped.getV1(), nx, ny, nz, lightView);
+                i2 = calculateIntensity(clipped.getV2(), nx, ny, nz, lightView);
+                i3 = calculateIntensity(clipped.getV3(), nx, ny, nz, lightView);
+
+                Vertex p1 = projectToScreen(clipped.getV1(), f, width, height);
+                Vertex p2 = projectToScreen(clipped.getV2(), f, width, height);
+                Vertex p3 = projectToScreen(clipped.getV3(), f, width, height);
+
+                trianglesToRaster.add(new ProjectedTriangle(p1, p2, p3, color, i1, i2, i3));
+            }
+        }
+    }
+
+    private float calculateIntensity(Vertex v, float nx, float ny, float nz, Vertex lightPos) {
+        // Normalizar a normal
+        float nLen = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+        if (nLen > 0) { nx /= nLen; ny /= nLen; nz /= nLen; }
+
+        // Vetor da Luz: Da luz até o vértice (lightPos - v)
+        float lx = lightPos.getX() - v.getX();
+        float ly = lightPos.getY() - v.getY();
+        float lz = lightPos.getZ() - v.getZ();
+        float lLen = (float) Math.sqrt(lx * lx + ly * ly + lz * lz);
+        if (lLen > 0) { lx /= lLen; ly /= lLen; lz /= lLen; }
+
+        float dot = nx * lx + ny * ly + nz * lz;
+        return Math.max(0.3f, Math.min(1.0f, dot)); // 0.3 é a luz ambiente
     }
 
     private float calculateIntensity(Vertex v, Vertex objCenter, Vertex lightPos) {

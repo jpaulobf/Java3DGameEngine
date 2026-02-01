@@ -40,6 +40,9 @@ public class WindowRace extends JFrame {
         scene = new Scene();
         renderer = new Renderer();
 
+        // Ativar iluminação Flat para que o carro (feito de cubos) tenha faces definidas
+        Window.flatLight = true;
+
         // Configurar Câmera
         scene.setBackgroundColor(0x87CEEB); // Céu Azul (Sky Blue)
         scene.setGroundColor(0x228B22); // Grama (Forest Green)
@@ -124,6 +127,10 @@ public class WindowRace extends JFrame {
 
                 // Atualizar Estrada (Gerar segmentos à frente do carro)
                 scene.getRoad().update(car.getZ());
+
+                // Atualizar Posição do Sol (Luz) para seguir o carro
+                // Posicionado alto e à esquerda-frente para criar sombras/iluminação interessante
+                scene.getPointLight().setPosition(car.getX() - 60, 100, car.getZ() + 60);
 
                 canvas.repaint();
             }
