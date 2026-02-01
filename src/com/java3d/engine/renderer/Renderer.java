@@ -288,20 +288,26 @@ public class Renderer {
         for (Road.Segment seg : road.getSegments()) {
             float halfW = seg.width / 2.0f;
 
+            // Calcular coordenadas X para o início e fim do segmento (permitindo curvas)
+            float x1 = seg.x - halfW; // Frente Esquerda
+            float x2 = seg.x + halfW; // Frente Direita
+            float x3 = seg.endX + halfW; // Trás Direita
+            float x4 = seg.endX - halfW; // Trás Esquerda
+
             // 1. Estrada Principal
             // Normal (0, 1, 0) -> Aponta para cima
             renderQuad(trianglesToRaster, cam, lightView, f, width, height, 
-                       -halfW, halfW, -2.0f, seg.z, seg.length, seg.color, 0, 1, 0);
+                       x1, x2, x3, x4, -2.0f, seg.z, seg.length, seg.color, 0, 1, 0);
 
             // 2. Faixa Dupla Amarela (Centro) - Segmentada
             // Verifica se o índice do segmento é par para desenhar a faixa (efeito tracejado)
             if (Math.round(seg.z / seg.length) % 2 == 0) {
                 // Linha Esquerda
                 renderQuad(trianglesToRaster, cam, lightView, f, width, height, 
-                           -0.25f, -0.10f, -1.99f, seg.z, seg.length, Color.YELLOW, 0, 1, 0);
+                           seg.x - 0.25f, seg.x - 0.10f, seg.endX - 0.10f, seg.endX - 0.25f, -1.99f, seg.z, seg.length, Color.YELLOW, 0, 1, 0);
                 // Linha Direita
                 renderQuad(trianglesToRaster, cam, lightView, f, width, height, 
-                           0.10f, 0.25f, -1.99f, seg.z, seg.length, Color.YELLOW, 0, 1, 0);
+                           seg.x + 0.10f, seg.x + 0.25f, seg.endX + 0.25f, seg.endX + 0.10f, -1.99f, seg.z, seg.length, Color.YELLOW, 0, 1, 0);
             }
 
             // 3. Guardrails (Barreiras laterais)
@@ -313,22 +319,22 @@ public class Renderer {
 
             // Esquerda (Parede interna + Topo)
             // Parede interna esquerda aponta para a direita (1, 0, 0)
-            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, -halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, railColor, 1, 0, 0);
-            renderQuad(trianglesToRaster, cam, lightView, f, width, height, -halfW - railThickness, -halfW, -2.0f + railHeight, seg.z, seg.length, Color.LIGHT_GRAY, 0, 1, 0);
+            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x - halfW, seg.endX - halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, railColor, 1, 0, 0);
+            renderQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x - halfW - railThickness, seg.x - halfW, seg.endX - halfW, seg.endX - halfW - railThickness, -2.0f + railHeight, seg.z, seg.length, Color.LIGHT_GRAY, 0, 1, 0);
 
             // Direita (Parede interna + Topo)
             // Parede interna direita aponta para a esquerda (-1, 0, 0)
-            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, railColor, -1, 0, 0);
-            renderQuad(trianglesToRaster, cam, lightView, f, width, height, halfW, halfW + railThickness, -2.0f + railHeight, seg.z, seg.length, Color.LIGHT_GRAY, 0, 1, 0);
+            renderVerticalQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x + halfW, seg.endX + halfW, -2.0f, -2.0f + railHeight, seg.z, seg.length, railColor, -1, 0, 0);
+            renderQuad(trianglesToRaster, cam, lightView, f, width, height, seg.x + halfW, seg.x + halfW + railThickness, seg.endX + halfW + railThickness, seg.endX + halfW, -2.0f + railHeight, seg.z, seg.length, Color.LIGHT_GRAY, 0, 1, 0);
         }
     }
 
     private void renderQuad(List<ProjectedTriangle> trianglesToRaster, Camera cam, Vertex lightView, double f, int width, int height,
-                            float xMin, float xMax, float y, float z, float length, Color color, float nx, float ny, float nz) {
-        Vertex v1 = new Vertex(xMin, y, z);          // Frente Esquerda
-        Vertex v2 = new Vertex(xMax, y, z);          // Frente Direita
-        Vertex v3 = new Vertex(xMax, y, z + length); // Trás Direita
-        Vertex v4 = new Vertex(xMin, y, z + length); // Trás Esquerda
+                            float x1Front, float x2Front, float x3Back, float x4Back, float y, float z, float length, Color color, float nx, float ny, float nz) {
+        Vertex v1 = new Vertex(x1Front, y, z);          // Frente Esquerda
+        Vertex v2 = new Vertex(x2Front, y, z);          // Frente Direita
+        Vertex v3 = new Vertex(x3Back, y, z + length);  // Trás Direita
+        Vertex v4 = new Vertex(x4Back, y, z + length);  // Trás Esquerda
 
         // Dividir o Quad em 2 Triângulos
         Triangle t1 = new Triangle(v1, v2, v3);
@@ -361,11 +367,11 @@ public class Renderer {
     }
 
     private void renderVerticalQuad(List<ProjectedTriangle> trianglesToRaster, Camera cam, Vertex lightView, double f, int width, int height,
-                                    float x, float yMin, float yMax, float z, float length, Color color, float nx, float ny, float nz) {
-        Vertex v1 = new Vertex(x, yMin, z);          // Base Frente
-        Vertex v2 = new Vertex(x, yMax, z);          // Topo Frente
-        Vertex v3 = new Vertex(x, yMax, z + length); // Topo Trás
-        Vertex v4 = new Vertex(x, yMin, z + length); // Base Trás
+                                    float xFront, float xBack, float yMin, float yMax, float z, float length, Color color, float nx, float ny, float nz) {
+        Vertex v1 = new Vertex(xFront, yMin, z);          // Base Frente
+        Vertex v2 = new Vertex(xFront, yMax, z);          // Topo Frente
+        Vertex v3 = new Vertex(xBack, yMax, z + length);  // Topo Trás
+        Vertex v4 = new Vertex(xBack, yMin, z + length);  // Base Trás
 
         // Dividir em 2 Triângulos
         Triangle t1 = new Triangle(v1, v2, v3);

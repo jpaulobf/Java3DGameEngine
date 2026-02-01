@@ -29,6 +29,7 @@ public class WindowRace extends JFrame {
     private Renderer renderer;
     private JPanel canvas;
     private boolean left, right, accel;
+    private float carPosOnTrackX = 0.0f; // Posição X do carro relativa ao centro da pista
     private float speed = 0.0f;
     private float maxSpeed = 1.5f;
     
@@ -109,35 +110,50 @@ public class WindowRace extends JFrame {
                     if (speed < 0) speed = 0;
                 }
 
-                // Aplicar movimento a TODAS as partes do carro
+                // Movimento Lateral (relativo à pista)
                 float turnSpeed = 0.2f;
-                for (GameObject part : scene.getGameObjects()) {
-                    // Movimento Lateral
-                    if (left && speed > 0) {
-                        part.setX(part.getX() - turnSpeed);
-                        part.setRy(-10); // Inclina visualmente
-                    } else if (right && speed > 0) {
-                        part.setX(part.getX() + turnSpeed);
-                        part.setRy(10);
-                    } else {
-                        part.setRy(0);
-                    }
-
-                    // Mover Carro para frente
-                    part.setZ(part.getZ() + speed);
+                if (left && speed > 0) {
+                    carPosOnTrackX -= turnSpeed;
+                } else if (right && speed > 0) {
+                    carPosOnTrackX += turnSpeed;
                 }
 
-                // Usar a primeira parte (Chassi) como referência para câmera e lógica
+                // Usar a primeira parte (Chassi) como referência para Z
                 GameObject carRef = scene.getGameObjects().get(0);
+                float carZ = carRef.getZ() + speed; // Calcula a nova posição Z
+
+                // Obter o X do centro da pista na nova posição Z
+                float trackCenterX = scene.getRoad().getTrackX(carZ);
+                float carWorldX = trackCenterX + carPosOnTrackX;
+
+                // Calcular o ângulo da pista (tangente) para rotacionar o carro
+                float lookAhead = 2.0f; // Olhar 2 metros à frente
+                float nextTrackX = scene.getRoad().getTrackX(carZ + lookAhead);
+                float dx = nextTrackX - trackCenterX;
+                float trackAngle = (float) Math.toDegrees(Math.atan2(dx, lookAhead));
+
+                // Aplicar movimento a TODAS as partes do carro
+                for (GameObject part : scene.getGameObjects()) {
+                    part.setX(carWorldX);
+                    part.setZ(carZ);
+
+                    // Inclinação visual (Esterçamento)
+                    float steeringAngle = 0;
+                    if (left && speed > 0) steeringAngle = -10;
+                    else if (right && speed > 0) steeringAngle = 10;
+
+                    // Somar ângulo da pista com ângulo de esterçamento
+                    part.setRy(trackAngle + steeringAngle);
+                }
 
                 // Câmera segue o carro
-                cam.setPosition(carRef.getX() * 0.5f, 3, carRef.getZ() - 8);
+                cam.setPosition(carWorldX, 3, carZ - 8);
 
                 // Atualizar Estrada (Gerar segmentos à frente do carro)
-                scene.getRoad().update(carRef.getZ());
+                scene.getRoad().update(carZ);
 
                 // Atualizar Posição do Sol (Luz) para seguir o carro
-                scene.getPointLight().setPosition(carRef.getX() - 60, 100, carRef.getZ() + 60);
+                scene.getPointLight().setPosition(carWorldX - 60, 100, carZ + 60);
 
                 canvas.repaint();
             }
