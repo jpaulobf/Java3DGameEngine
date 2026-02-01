@@ -11,7 +11,7 @@ import com.java3d.engine.scene.Starfield;
 import com.java3d.engine.scene.Road;
 import com.java3d.engine.scene.PointLight;
 import com.java3d.engine.scene.Scene;
-import com.java3d.engine.window.Window;
+import com.java3d.engine.window.Space;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -127,7 +127,7 @@ public class Renderer {
                 Vertex v3View = worldToView(v3World, camera);
 
                 float flatIntensity = 0;
-                if (Window.flatLight) {
+                if (Space.flatLight) {
                     // --- Flat Shading (Iluminação por Face) ---
                     // Calcular vetores do triângulo no View Space
                     double ux = v2View.getX() - v1View.getX();
@@ -165,7 +165,7 @@ public class Renderer {
                 for (Triangle clipped : clipTriangle(v1View, v2View, v3View)) {
                     float i1, i2, i3;
 
-                    if (Window.flatLight) {
+                    if (Space.flatLight) {
                         i1 = i2 = i3 = flatIntensity;
                     } else {
                         // Calcular intensidade (Gouraud) para cada vértice do triângulo recortado

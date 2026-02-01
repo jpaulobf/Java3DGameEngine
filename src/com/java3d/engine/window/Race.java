@@ -19,7 +19,7 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
-public class WindowRace extends JFrame {
+public class Race extends JFrame {
 
     private Scene scene;
     private Renderer renderer;
@@ -28,8 +28,9 @@ public class WindowRace extends JFrame {
     private float dayCycleTime = 0.0f;
     private float dayCycleDuration = 120.0f; // Duração do ciclo em segundos (2 minutos)
     private Car car;
+    private int cameraMode = 0; // 0=Normal, 1=Helicopter, 2=First Person, 3=Rear Windshield
     
-    public WindowRace() {
+    public Race() {
         setTitle("Java 3D Racing Demo");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -39,7 +40,7 @@ public class WindowRace extends JFrame {
         renderer = new Renderer();
 
         // Ativar iluminação Flat para que o carro (feito de cubos) tenha faces definidas
-        Window.flatLight = true;
+        Space.flatLight = true;
 
         // Configurar Câmera
         scene.setBackgroundColor(0x87CEEB); // Céu Azul (Sky Blue)
@@ -76,6 +77,7 @@ public class WindowRace extends JFrame {
                     case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> right = true;
                     case KeyEvent.VK_W, KeyEvent.VK_UP -> accel = true;
                     case KeyEvent.VK_M -> car.toggleHeadlights(); // Alternar faróis
+                    case KeyEvent.VK_C -> cameraMode = (cameraMode + 1) % 4; // Alternar Câmera
                 }
             }
 
@@ -115,7 +117,25 @@ public class WindowRace extends JFrame {
                 float collisionShake = car.getCollisionShake();
                 float shakeX = (float) ((Math.random() - 0.5) * collisionShake);
                 float shakeY = (float) ((Math.random() - 0.5) * collisionShake);
-                cam.setPosition(car.getX() + shakeX, 3 + shakeY, car.getZ() - 8);
+                
+                switch (cameraMode) {
+                    case 0: // Normal (3rd Person)
+                        cam.setPosition(car.getX() + shakeX, 3 + shakeY, car.getZ() - 8);
+                        cam.setPitch(15);
+                        break;
+                    case 1: // Helicopter (Top-Down)
+                        cam.setPosition(car.getX(), 20, car.getZ() - 15);
+                        cam.setPitch(40);
+                        break;
+                    case 2: // First Person (Bumper/Nose)
+                        cam.setPosition(car.getX() + shakeX, -0.8f + shakeY, car.getZ() + 2.2f);
+                        cam.setPitch(0);
+                        break;
+                    case 3: // Camera 4 (Afastada 2m do carro)
+                        cam.setPosition(car.getX() + shakeX, 1f + shakeY, car.getZ() - 8.0f);
+                        cam.setPitch(0);
+                        break;
+                }
                 
                 // Rotacionar câmera para acompanhar o horizonte (manter a próxima reta centralizada)
                 cam.setYaw(-camTrackAngle);
@@ -141,7 +161,7 @@ public class WindowRace extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new WindowRace().setVisible(true);
+            new Race().setVisible(true);
         });
     }
 

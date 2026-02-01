@@ -19,7 +19,7 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
-public class Window extends JFrame {
+public class Space extends JFrame {
 
     private Scene scene;
     private Renderer renderer;
@@ -32,7 +32,7 @@ public class Window extends JFrame {
     public static final boolean USE_GPU = false; 
     public static boolean flatLight = true; // Alternar entre Flat e Gouraud Shading
 
-    public Window() {
+    public Space() {
         setTitle("Java 3D Game Engine");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -203,7 +203,7 @@ public class Window extends JFrame {
         } else {
             System.out.println("Iniciando modo CPU (Software Rendering)...");
             SwingUtilities.invokeLater(() -> {
-                new Window().setVisible(true);
+                new Space().setVisible(true);
             });
         }
     }
