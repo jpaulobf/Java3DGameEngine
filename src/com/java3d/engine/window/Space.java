@@ -1,7 +1,8 @@
 package com.java3d.engine.window;
 
 import com.java3d.engine.primitives.PrimitiveFactory;
-import com.java3d.engine.renderer.Renderer;
+import com.java3d.engine.renderer.IRenderer;
+import com.java3d.engine.renderer.SoftwareRenderer;
 import com.java3d.engine.scene.Camera;
 import com.java3d.engine.scene.GameObject;
 import com.java3d.engine.scene.Scene;
@@ -22,7 +23,7 @@ import javax.swing.Timer;
 public class Space extends JFrame {
 
     private Scene scene;
-    private Renderer renderer;
+    private IRenderer renderer;
     private JPanel canvas;
     private boolean w, a, s, d, space, shooting; // Flags de controle da nave
     private float currentSpeed = 0.3f;
@@ -40,7 +41,7 @@ public class Space extends JFrame {
 
         // Inicializar Cena e Renderer
         scene = new Scene();
-        renderer = new Renderer();
+        renderer = new SoftwareRenderer();
 
         // Configurar Câmera
         scene.getCamera().setFov(75);

@@ -1,6 +1,7 @@
 package com.java3d.engine.window;
 
-import com.java3d.engine.renderer.Renderer;
+import com.java3d.engine.renderer.IRenderer;
+import com.java3d.engine.renderer.SoftwareRenderer;
 import com.java3d.engine.scene.Camera;
 import com.java3d.engine.scene.GameObject;
 import com.java3d.engine.scene.Road;
@@ -22,7 +23,7 @@ import javax.swing.Timer;
 public class Race extends JFrame {
 
     private Scene scene;
-    private Renderer renderer;
+    private IRenderer renderer;
     private JPanel canvas;
     private boolean left, right, accel;
     private float dayCycleTime = 0.0f;
@@ -37,7 +38,7 @@ public class Race extends JFrame {
         setLocationRelativeTo(null);
 
         scene = new Scene();
-        renderer = new Renderer();
+        renderer = new SoftwareRenderer();
 
         // Ativar iluminação Flat para que o carro (feito de cubos) tenha faces definidas
         Space.flatLight = true;

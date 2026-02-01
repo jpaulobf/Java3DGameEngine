@@ -21,7 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
-public class Renderer {
+public class SoftwareRenderer implements IRenderer {
     
     private BufferedImage image;
     private int[] pixels;
@@ -38,6 +38,7 @@ public class Renderer {
         }
     }
 
+    @Override
     public void render(Graphics2D g, Scene scene, int width, int height, float speed) {
         // Inicializar buffers se necessário (ou se a janela redimensionar)
         if (image == null || w != width || h != height) {
