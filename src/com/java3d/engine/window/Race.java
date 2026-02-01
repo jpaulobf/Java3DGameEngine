@@ -39,6 +39,7 @@ public class Race extends JFrame {
 
         scene = new Scene();
         renderer = new SoftwareRenderer();
+        scene.getClouds().generate();
 
         // Ativar iluminação Flat para que o carro (feito de cubos) tenha faces definidas
         Space.flatLight = true;

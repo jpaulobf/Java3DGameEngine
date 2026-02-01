@@ -9,6 +9,9 @@ public class Clouds {
 
     public Clouds() {
         items = new ArrayList<>();
+    }
+
+    public void generate() {
         // Adicionar Nuvens 2D (No Horizonte)
         for (int i = 0; i < 15; i++) {
             float x = (float) (Math.random() * 360); // Posição em graus (0-360)
