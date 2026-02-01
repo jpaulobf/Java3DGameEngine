@@ -10,6 +10,9 @@ public class Scene {
     private PointLight pointLight;
     private Starfield starfield;
     private List<Laser> lasers;
+    private Road road;
+    private int backgroundColor = 0x000000; // Cor de fundo padrão (Preto)
+    private int groundColor = -1; // Cor do chão (-1 = desativado/transparente)
 
     public Scene() {
         this.gameObjects = new ArrayList<>();
@@ -17,6 +20,7 @@ public class Scene {
         this.camera = new Camera(0, 0, 0);
         this.pointLight = new PointLight(0, 5, 0); // Luz padrão acima da origem
         this.starfield = null;
+        this.road = null;
     }
 
     public void addGameObject(GameObject gameObject) {
@@ -53,5 +57,29 @@ public class Scene {
 
     public List<Laser> getLasers() {
         return lasers;
+    }
+
+    public Road getRoad() {
+        return road;
+    }
+
+    public void setRoad(Road road) {
+        this.road = road;
+    }
+
+    public int getBackgroundColor() {
+        return backgroundColor;
+    }
+
+    public void setBackgroundColor(int backgroundColor) {
+        this.backgroundColor = backgroundColor;
+    }
+
+    public int getGroundColor() {
+        return groundColor;
+    }
+
+    public void setGroundColor(int groundColor) {
+        this.groundColor = groundColor;
     }
 }

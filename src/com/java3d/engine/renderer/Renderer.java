@@ -7,6 +7,7 @@ import com.java3d.engine.scene.Camera;
 import com.java3d.engine.scene.GameObject;
 import com.java3d.engine.scene.Laser;
 import com.java3d.engine.scene.Starfield;
+import com.java3d.engine.scene.Road;
 import com.java3d.engine.scene.PointLight;
 import com.java3d.engine.scene.Scene;
 import com.java3d.engine.window.Window;
@@ -46,9 +47,29 @@ public class Renderer {
             zBuffer = new float[w * h];
         }
 
+        Camera camera = scene.getCamera();
+
         // Limpar buffers
-        Arrays.fill(pixels, 0); // Preto (0x000000)
         Arrays.fill(zBuffer, Float.MAX_VALUE); // Z infinito
+
+        // Renderizar Céu e Chão (Horizonte)
+        if (scene.getGroundColor() != -1) {
+            double fovRad = Math.toRadians(camera.getFov());
+            double f = (width / 2.0) / Math.tan(fovRad / 2.0);
+            double pitchRad = Math.toRadians(camera.getPitch());
+
+            // Calcular a linha do horizonte na tela
+            // Se pitch > 0 (olhando para baixo), o horizonte sobe (y diminui)
+            int horizonY = (int) (height / 2.0 - f * Math.tan(pitchRad));
+            int clampedHorizon = Math.max(0, Math.min(height, horizonY));
+
+            // Preencher Céu (Topo até Horizonte)
+            if (clampedHorizon > 0) Arrays.fill(pixels, 0, clampedHorizon * width, scene.getBackgroundColor());
+            // Preencher Chão (Horizonte até Base)
+            if (clampedHorizon < height) Arrays.fill(pixels, clampedHorizon * width, pixels.length, scene.getGroundColor());
+        } else {
+            Arrays.fill(pixels, scene.getBackgroundColor()); // Limpa tudo com a cor de fundo
+        }
 
         // Renderizar o Starfield primeiro (sem Z-buffer)
         Starfield starfield = scene.getStarfield();
@@ -62,7 +83,6 @@ public class Renderer {
             ig.dispose();
         }
 
-        Camera camera = scene.getCamera();
         List<GameObject> gameObjects = scene.getGameObjects();
 
         double fovRad = Math.toRadians(camera.getFov());
@@ -73,6 +93,11 @@ public class Renderer {
         Vertex lightView = worldToView(new Vertex(pl.getX(), pl.getY(), pl.getZ()), camera);
 
         List<ProjectedTriangle> trianglesToRaster = new ArrayList<>();
+
+        // Renderizar Estrada (Road)
+        if (scene.getRoad() != null) {
+            renderRoad(scene.getRoad(), camera, lightView, f, width, height, trianglesToRaster);
+        }
 
         for (GameObject obj : gameObjects) {
             Mesh mesh = obj.getMesh();
@@ -254,6 +279,56 @@ public class Renderer {
                 Vertex pStart = projectToScreen(vStart, f, width, height);
                 Vertex pEnd = projectToScreen(vEnd, f, width, height);
                 g.drawLine((int)pStart.getX(), (int)pStart.getY(), (int)pEnd.getX(), (int)pEnd.getY());
+            }
+        }
+    }
+
+    private void renderRoad(Road road, Camera cam, Vertex lightView, double f, int width, int height, List<ProjectedTriangle> trianglesToRaster) {
+        for (Road.Segment seg : road.getSegments()) {
+            // Criar os 4 vértices do segmento (Quad)
+            // Y é fixo em -2 (chão)
+            float y = -2.0f;
+            float halfW = seg.width / 2.0f;
+            
+            Vertex v1 = new Vertex(-halfW, y, seg.z);              // Frente Esquerda
+            Vertex v2 = new Vertex( halfW, y, seg.z);              // Frente Direita
+            Vertex v3 = new Vertex( halfW, y, seg.z + seg.length); // Trás Direita
+            Vertex v4 = new Vertex(-halfW, y, seg.z + seg.length); // Trás Esquerda
+
+            // Dividir o Quad em 2 Triângulos
+            Triangle t1 = new Triangle(v1, v2, v3);
+            Triangle t2 = new Triangle(v1, v3, v4);
+            
+            List<Triangle> roadTris = Arrays.asList(t1, t2);
+
+            for (Triangle t : roadTris) {
+                // Transformar para View Space
+                Vertex v1View = worldToView(t.v1, cam);
+                Vertex v2View = worldToView(t.v2, cam);
+                Vertex v3View = worldToView(t.v3, cam);
+
+                // Clipping
+                for (Triangle clipped : clipTriangle(v1View, v2View, v3View)) {
+                    float i1, i2, i3;
+                    
+                    // Iluminação simples para a estrada (Flat ou Gouraud)
+                    // Como a estrada é plana, a normal é sempre (0, 1, 0)
+                    // Vamos usar uma intensidade fixa baseada na cor para simplificar e manter o estilo "Arcade"
+                    // Mas podemos aplicar a luz se quisermos
+                    if (Window.flatLight) {
+                        i1 = i2 = i3 = 1.0f; // Full bright para estilo arcade
+                    } else {
+                        i1 = calculateIntensity(clipped.getV1(), clipped.getV1(), lightView);
+                        i2 = calculateIntensity(clipped.getV2(), clipped.getV2(), lightView);
+                        i3 = calculateIntensity(clipped.getV3(), clipped.getV3(), lightView);
+                    }
+
+                    Vertex p1 = projectToScreen(clipped.getV1(), f, width, height);
+                    Vertex p2 = projectToScreen(clipped.getV2(), f, width, height);
+                    Vertex p3 = projectToScreen(clipped.getV3(), f, width, height);
+
+                    trianglesToRaster.add(new ProjectedTriangle(p1, p2, p3, seg.color, i1, i2, i3));
+                }
             }
         }
     }
