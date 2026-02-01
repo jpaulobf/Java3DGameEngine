@@ -5,6 +5,7 @@ import com.java3d.engine.renderer.Renderer;
 import com.java3d.engine.scene.Camera;
 import com.java3d.engine.scene.GameObject;
 import com.java3d.engine.scene.Scene;
+import com.java3d.engine.scene.Laser;
 import com.java3d.engine.scene.Starfield;
 
 import java.awt.Graphics;
@@ -23,8 +24,9 @@ public class Window extends JFrame {
     private Scene scene;
     private Renderer renderer;
     private JPanel canvas;
-    private boolean w, a, s, d, space; // Flags de controle da nave
+    private boolean w, a, s, d, space, shooting; // Flags de controle da nave
     private float currentSpeed = 0.3f;
+    private int shootCooldown = 0;
     
     // Opção para alternar entre Renderização via Software (CPU) e Hardware (GPU/OpenGL)
     public static final boolean USE_GPU = false; 
@@ -76,6 +78,7 @@ public class Window extends JFrame {
                     case KeyEvent.VK_D -> d = true;
                     case KeyEvent.VK_F -> flatLight = !flatLight; // Toggle Iluminação
                     case KeyEvent.VK_SPACE -> space = true;
+                    case KeyEvent.VK_J -> shooting = true;
                 }
             }
 
@@ -87,6 +90,7 @@ public class Window extends JFrame {
                     case KeyEvent.VK_A -> a = false;
                     case KeyEvent.VK_D -> d = false;
                     case KeyEvent.VK_SPACE -> space = false;
+                    case KeyEvent.VK_J -> shooting = false;
                 }
             }
         });
@@ -113,6 +117,23 @@ public class Window extends JFrame {
                 } else {
                     currentSpeed -= (5 * acceleration);
                     if (currentSpeed < baseSpeed) currentSpeed = baseSpeed;
+                }
+
+                // Lógica de Tiro (Laser)
+                if (shootCooldown > 0) shootCooldown--;
+                if (shooting && shootCooldown <= 0) {
+                    // Cria um laser na posição da nave
+                    // Velocidade do laser = velocidade da nave + um extra
+                    scene.getLasers().add(new Laser(spaceship.getX(), spaceship.getY(), spaceship.getZ(), currentSpeed + 1.5f));
+                    shootCooldown = 8; // Intervalo entre tiros (frames)
+                }
+
+                // Atualizar Lasers
+                for (int i = 0; i < scene.getLasers().size(); i++) {
+                    Laser l = scene.getLasers().get(i);
+                    l.update();
+                    // Remover lasers que foram muito longe (para economizar memória)
+                    if (l.getZ() - spaceship.getZ() > 200) scene.getLasers().remove(i--);
                 }
 
                 float strafeSpeed = 0.15f; // Velocidade lateral

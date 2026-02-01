@@ -5,6 +5,7 @@ import com.java3d.engine.geometry.Triangle;
 import com.java3d.engine.geometry.Vertex;
 import com.java3d.engine.scene.Camera;
 import com.java3d.engine.scene.GameObject;
+import com.java3d.engine.scene.Laser;
 import com.java3d.engine.scene.Starfield;
 import com.java3d.engine.scene.PointLight;
 import com.java3d.engine.scene.Scene;
@@ -54,6 +55,10 @@ public class Renderer {
         if (starfield != null) {
             Graphics2D ig = image.createGraphics();
             renderStarfield(ig, starfield, scene.getCamera(), width, height, speed);
+            
+            // Renderizar Lasers (usando o mesmo Graphics2D do starfield para desenhar linhas)
+            renderLasers(ig, scene, width, height);
+            
             ig.dispose();
         }
 
@@ -223,6 +228,32 @@ public class Renderer {
                 } else if (x >= 0 && x < w && y >= 0 && y < h) {
                     pixels[y * w + x] = Color.WHITE.getRGB();
                 }
+            }
+        }
+    }
+
+    private void renderLasers(Graphics2D g, Scene scene, int width, int height) {
+        Camera cam = scene.getCamera();
+        double fovRad = Math.toRadians(cam.getFov());
+        double f = (width / 2.0) / Math.tan(fovRad / 2.0);
+        float laserLength = 2.0f; // Comprimento do laser
+
+        g.setColor(Color.CYAN); // Cor do Laser
+        g.setStroke(new java.awt.BasicStroke(2)); // Espessura da linha
+
+        for (Laser laser : scene.getLasers()) {
+            // Ponto inicial e final do laser
+            Vertex start = new Vertex(laser.getX(), laser.getY(), laser.getZ());
+            Vertex end = new Vertex(laser.getX(), laser.getY(), laser.getZ() + laserLength);
+
+            Vertex vStart = worldToView(start, cam);
+            Vertex vEnd = worldToView(end, cam);
+
+            // Só desenha se estiver na frente da câmera
+            if (vStart.getZ() > 0.1 && vEnd.getZ() > 0.1) {
+                Vertex pStart = projectToScreen(vStart, f, width, height);
+                Vertex pEnd = projectToScreen(vEnd, f, width, height);
+                g.drawLine((int)pStart.getX(), (int)pStart.getY(), (int)pEnd.getX(), (int)pEnd.getY());
             }
         }
     }

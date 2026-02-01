@@ -9,9 +9,11 @@ public class Scene {
     private Camera camera;
     private PointLight pointLight;
     private Starfield starfield;
+    private List<Laser> lasers;
 
     public Scene() {
         this.gameObjects = new ArrayList<>();
+        this.lasers = new ArrayList<>();
         this.camera = new Camera(0, 0, 0);
         this.pointLight = new PointLight(0, 5, 0); // Luz padrão acima da origem
         this.starfield = null;
@@ -47,5 +49,9 @@ public class Scene {
 
     public void setStarfield(Starfield starfield) {
         this.starfield = starfield;
+    }
+
+    public List<Laser> getLasers() {
+        return lasers;
     }
 }
