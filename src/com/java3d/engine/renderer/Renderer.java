@@ -101,6 +101,7 @@ public class Renderer {
 
         for (GameObject obj : gameObjects) {
             Mesh mesh = obj.getMesh();
+            Color objColor = obj.getColor();
             
             // Transformar o Centro do Objeto para View Space (usado para calcular normais dos vértices)
             Vertex objView = worldToView(new Vertex(obj.getX(), obj.getY(), obj.getZ()), camera);
@@ -169,7 +170,7 @@ public class Renderer {
                     Vertex p2 = projectToScreen(clipped.getV2(), f, width, height);
                     Vertex p3 = projectToScreen(clipped.getV3(), f, width, height);
 
-                    trianglesToRaster.add(new ProjectedTriangle(p1, p2, p3, Color.WHITE, i1, i2, i3));
+                    trianglesToRaster.add(new ProjectedTriangle(p1, p2, p3, objColor, i1, i2, i3));
                 }
             }
         }

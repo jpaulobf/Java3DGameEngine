@@ -9,6 +9,7 @@ import com.java3d.engine.scene.GameObject;
 import com.java3d.engine.scene.Road;
 import com.java3d.engine.scene.Scene;
 
+import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.ActionEvent;
@@ -54,10 +55,12 @@ public class WindowRace extends JFrame {
         Road road = new Road();
         scene.setRoad(road);
 
-        // Adicionar o "Carro" (Modelo customizado)
-        GameObject car = new GameObject(createCarMesh());
-        car.setPosition(0, -1.25f, 0); // Posicionado logo acima do chão (-2.0)
-        scene.addGameObject(car);
+        // Adicionar o "Carro" (Modelo customizado dividido em partes coloridas)
+        List<GameObject> carParts = createCarParts();
+        for (GameObject part : carParts) {
+            part.setPosition(0, -1.25f, 0); // Posicionado logo acima do chão (-2.0)
+            scene.addGameObject(part);
+        }
 
         canvas = new JPanel() {
             @Override
@@ -95,7 +98,6 @@ public class WindowRace extends JFrame {
         Timer timer = new Timer(16, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                GameObject car = scene.getGameObjects().get(0);
                 Camera cam = scene.getCamera();
 
                 // Aceleração
@@ -107,30 +109,35 @@ public class WindowRace extends JFrame {
                     if (speed < 0) speed = 0;
                 }
 
-                // Movimento Lateral
+                // Aplicar movimento a TODAS as partes do carro
                 float turnSpeed = 0.2f;
-                if (left && speed > 0) {
-                    car.setX(car.getX() - turnSpeed);
-                    car.setRy(-10); // Inclina visualmente
-                } else if (right && speed > 0) {
-                    car.setX(car.getX() + turnSpeed);
-                    car.setRy(10);
-                } else {
-                    car.setRy(0);
+                for (GameObject part : scene.getGameObjects()) {
+                    // Movimento Lateral
+                    if (left && speed > 0) {
+                        part.setX(part.getX() - turnSpeed);
+                        part.setRy(-10); // Inclina visualmente
+                    } else if (right && speed > 0) {
+                        part.setX(part.getX() + turnSpeed);
+                        part.setRy(10);
+                    } else {
+                        part.setRy(0);
+                    }
+
+                    // Mover Carro para frente
+                    part.setZ(part.getZ() + speed);
                 }
 
-                // Mover Carro para frente
-                car.setZ(car.getZ() + speed);
+                // Usar a primeira parte (Chassi) como referência para câmera e lógica
+                GameObject carRef = scene.getGameObjects().get(0);
 
                 // Câmera segue o carro
-                cam.setPosition(car.getX() * 0.5f, 3, car.getZ() - 8);
+                cam.setPosition(carRef.getX() * 0.5f, 3, carRef.getZ() - 8);
 
                 // Atualizar Estrada (Gerar segmentos à frente do carro)
-                scene.getRoad().update(car.getZ());
+                scene.getRoad().update(carRef.getZ());
 
                 // Atualizar Posição do Sol (Luz) para seguir o carro
-                // Posicionado alto e à esquerda-frente para criar sombras/iluminação interessante
-                scene.getPointLight().setPosition(car.getX() - 60, 100, car.getZ() + 60);
+                scene.getPointLight().setPosition(carRef.getX() - 60, 100, carRef.getZ() + 60);
 
                 canvas.repaint();
             }
@@ -144,34 +151,45 @@ public class WindowRace extends JFrame {
         });
     }
 
-    private Mesh createCarMesh() {
-        List<Triangle> triangles = new ArrayList<>();
+    private List<GameObject> createCarParts() {
+        List<GameObject> parts = new ArrayList<>();
+
+        // Cores
+        Color redBody = new Color(220, 20, 60); // Vermelho Carmesim
+        Color darkRed = new Color(100, 0, 0);   // Vermelho Escuro (Detalhes/Cabine)
+        Color spoilerColor = new Color(40, 40, 40); // Cinza Quase Preto
+        Color tireColor = new Color(20, 20, 20);    // Preto Pneu
         
         // Chassi Principal (Corpo do carro)
-        addBox(triangles, 0, 0, 0, 1.8f, 0.6f, 4.0f); 
+        List<Triangle> chassiTris = new ArrayList<>();
+        addBox(chassiTris, 0, 0, 0, 1.8f, 0.6f, 4.0f);
+        parts.add(new GameObject(new Mesh(chassiTris), redBody));
         
         // Cabine (Vidros/Teto) - Recuada um pouco
-        addBox(triangles, 0, 0.5f, -0.5f, 1.4f, 0.5f, 2.0f);
+        List<Triangle> cabinTris = new ArrayList<>();
+        addBox(cabinTris, 0, 0.5f, -0.5f, 1.4f, 0.5f, 2.0f);
+        parts.add(new GameObject(new Mesh(cabinTris), darkRed));
         
         // Spoiler Traseiro
-        // Pilares
-        addBox(triangles, -0.7f, 0.5f, -1.8f, 0.1f, 0.4f, 0.1f);
-        addBox(triangles, 0.7f, 0.5f, -1.8f, 0.1f, 0.4f, 0.1f);
-        // Asa
-        addBox(triangles, 0, 0.8f, -1.8f, 1.8f, 0.1f, 0.4f);
+        List<Triangle> spoilerTris = new ArrayList<>();
+        addBox(spoilerTris, -0.7f, 0.5f, -1.8f, 0.1f, 0.4f, 0.1f); // Pilar Esq
+        addBox(spoilerTris, 0.7f, 0.5f, -1.8f, 0.1f, 0.4f, 0.1f);  // Pilar Dir
+        addBox(spoilerTris, 0, 0.8f, -1.8f, 1.8f, 0.1f, 0.4f);     // Asa
+        parts.add(new GameObject(new Mesh(spoilerTris), spoilerColor));
         
         // Rodas (Simplificadas)
+        List<Triangle> wheelTris = new ArrayList<>();
         float wheelY = -0.3f;
         float wheelX = 0.8f;
         float wheelZ = 1.2f;
         float wSize = 0.6f;
-        
-        addBox(triangles, -wheelX, wheelY,  wheelZ, 0.3f, wSize, wSize); // Traseira Esq
-        addBox(triangles,  wheelX, wheelY,  wheelZ, 0.3f, wSize, wSize); // Traseira Dir
-        addBox(triangles, -wheelX, wheelY, -wheelZ, 0.3f, wSize, wSize); // Dianteira Esq
-        addBox(triangles,  wheelX, wheelY, -wheelZ, 0.3f, wSize, wSize); // Dianteira Dir
+        addBox(wheelTris, -wheelX, wheelY,  wheelZ, 0.3f, wSize, wSize); // Traseira Esq
+        addBox(wheelTris,  wheelX, wheelY,  wheelZ, 0.3f, wSize, wSize); // Traseira Dir
+        addBox(wheelTris, -wheelX, wheelY, -wheelZ, 0.3f, wSize, wSize); // Dianteira Esq
+        addBox(wheelTris,  wheelX, wheelY, -wheelZ, 0.3f, wSize, wSize); // Dianteira Dir
+        parts.add(new GameObject(new Mesh(wheelTris), tireColor));
 
-        return new Mesh(triangles);
+        return parts;
     }
 
     private void addBox(List<Triangle> triangles, float x, float y, float z, float w, float h, float d) {

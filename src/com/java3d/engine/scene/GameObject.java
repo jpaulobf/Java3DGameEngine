@@ -2,17 +2,25 @@ package com.java3d.engine.scene;
 
 import com.java3d.engine.geometry.Mesh;
 
+import java.awt.Color;
+
 public class GameObject {
 
     private Mesh mesh;
     private float x, y, z;
     private float rx, ry, rz;
+    private Color color = Color.WHITE;
 
     public GameObject(Mesh mesh) {
         this.mesh = mesh;
         this.x = 0;
         this.y = 0;
         this.z = 0;
+    }
+
+    public GameObject(Mesh mesh, Color color) {
+        this(mesh);
+        this.color = color;
     }
 
     public void setPosition(float x, float y, float z) {
@@ -62,5 +70,11 @@ public class GameObject {
         this.z = z;
     }
 
-    
+    public Color getColor() {
+        return color;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
+    }
 }
